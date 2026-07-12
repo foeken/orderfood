@@ -12,6 +12,38 @@ export interface Restaurant {
   delivery_fee: number;   // cents
   min_order: number;      // cents
   image_url?: string;
+  source_id?: string;
+  address?: {
+    city?: string;
+    street?: string;
+    postcode?: string;
+    latitude?: number;
+    longitude?: number;
+  };
+  rating_count?: number;
+  is_new?: boolean;
+  distance_meters?: number;
+  opening_time?: string;
+  delivery_opening_time?: string;
+  supports_delivery?: boolean;
+  supports_collection?: boolean;
+  open_for_delivery_now?: boolean;
+  open_for_collection_now?: boolean;
+  open_for_preorder_now?: boolean;
+  temporarily_offline?: boolean;
+  delivery_eta?: {
+    approximate?: number;
+    min?: number;
+    max?: number;
+  };
+  delivery_fee_bands?: Array<{ minimum_order: number; fee: number }>;
+  service_options?: Array<'delivery' | 'collection' | 'preorder'>;
+  deals?: Array<{ description?: string; type?: string }>;
+  tags?: unknown[];
+  availability?: unknown;
+  banner_url?: string;
+  is_premier?: boolean;
+  source_data?: Record<string, unknown>;
 }
 
 export interface MenuItemOption {
@@ -93,6 +125,34 @@ export interface Order {
   estimated_delivery?: string;    // ISO 8601
 }
 
+export interface OrderTracking {
+  status: OrderStatus;
+  details: string;
+  raw_status?: string;
+  is_active?: boolean;
+  is_recent?: boolean;
+  is_delayed?: boolean;
+  delay?: string;
+  initial_due_date?: string | null;
+  current_due_date?: string | null;
+  estimated_start?: string;
+  estimated_end?: string;
+  confidence?: string;
+  service_type?: string;
+  delivery_model?: string;
+  is_for_delivery?: boolean;
+  courier_tracking_available?: boolean;
+  courier_chat_available?: boolean;
+  history?: Array<{
+    status: string;
+    timestamp?: string;
+    due_date?: string | null;
+    confidence?: string;
+    reason?: string;
+  }>;
+  upcoming?: string[];
+}
+
 // --- Account ---
 
 export interface Address {
@@ -129,6 +189,8 @@ export interface SearchParams {
   cuisine?: string;
   query?: string;
   sort_by?: 'rating' | 'delivery_time' | 'delivery_fee';
+  service_type?: 'delivery' | 'collection';
+  open_now?: boolean;
 }
 
 export interface PlatformClient {
@@ -148,7 +210,7 @@ export interface PlatformClient {
   deleteAddress?(addressId: string): Promise<void>;
   getPaymentMethods(): Promise<PaymentMethod[]>;
   placeOrder(addressId: string, paymentMethodId: string): Promise<Order>;
-  trackOrder(orderId: string): Promise<{ status: OrderStatus; details: string }>;
+  trackOrder(orderId: string): Promise<OrderTracking>;
   getOrderHistory(limit?: number): Promise<Order[]>;
   cancelOrder(orderId: string): Promise<void>;
 }

@@ -22,9 +22,20 @@ export interface TBListingRestaurant {
     starRating?: number;
   };
   isNew?: boolean;
+  driveDistanceMeters?: number;
+  openingTimeLocal?: string;
+  deliveryOpeningTimeLocal?: string;
+  isCollection?: boolean;
+  isDelivery?: boolean;
   isOpenNowForDelivery?: boolean;
   isOpenNowForCollection?: boolean;
+  isOpenNowForPreorder?: boolean;
+  isTemporarilyOffline?: boolean;
+  defaultDisplayRank?: number;
+  isTemporaryBoost?: boolean;
+  isPremier?: boolean;
   deliveryEtaMinutes?: {
+    approximate?: number;
     rangeLower?: number;
     rangeUpper?: number;
   };
@@ -41,10 +52,15 @@ export interface TBListingRestaurant {
   };
   cuisines?: TBCuisine[];
   logoUrl?: string;
+  bannerUrl?: string;
+  partnerHeaderInfo?: unknown;
+  isTestRestaurant?: boolean;
   deals?: Array<{
     description?: string;
     offerType?: string;
   }>;
+  tags?: unknown[];
+  availability?: unknown;
 }
 
 export interface TBListingPageState {
@@ -119,18 +135,41 @@ export interface TBOrderStatusResponse {
   id: string;
   restaurantName: string;
   status: TBOrderStatus;
+  isForDelivery?: boolean;
+  timestamp?: string;
+  serviceType?: string;
+  deliveryModel?: string;
+  storefrontType?: string;
+  deliveryModelOptions?: unknown;
 }
 
 export interface TBOrderStatus {
   isActive: boolean;
   value: string;
   isDelayed?: boolean;
+  isRecent?: boolean;
+  timeZone?: string;
+  initialDueDate?: string | null;
+  delay?: string;
   currentDueDate?: string | null;
   finishedAt?: string | null;
   estimatedCompletion?: {
     start?: string;
     end?: string;
   } | null;
+  estimatedCompletionInMinutes?: number | null;
+  confidence?: string;
+  tracking?: { providerName?: string; channelName?: string; channelKey?: string } | null;
+  courierChat?: { providerName?: string; channelName?: string; channelKey?: string } | null;
+  history?: Array<{
+    value: string;
+    timestamp?: string;
+    dueDate?: string | null;
+    confidence?: string;
+    reason?: string;
+  }>;
+  upcoming?: Array<{ value: string; sortOrder?: number }>;
+  statusReason?: string;
 }
 
 export interface TBImageSource {

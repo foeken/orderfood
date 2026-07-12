@@ -75,7 +75,15 @@ export function mapOrderStatus(value: string): OrderStatus {
 
 export function mapRestaurantSummary(
   restaurant: TBListingRestaurant,
+  feeConfig?: {
+    minimumOrderValue?: number;
+    bands?: Array<{ minimumAmount?: number; fee?: number }>;
+  },
 ): Restaurant {
+  const serviceOptions: Array<'delivery' | 'collection' | 'preorder'> = [];
+  if (restaurant.isDelivery) serviceOptions.push('delivery');
+  if (restaurant.isCollection) serviceOptions.push('collection');
+  if (restaurant.isOpenNowForPreorder) serviceOptions.push('preorder');
   return {
     id: restaurant.uniqueName,
     platform: 'thuisbezorgd',
@@ -92,6 +100,47 @@ export function mapRestaurantSummary(
       restaurant.deliveryFees?.byMaxFee?.minimumAmount ??
       0,
     image_url: restaurant.logoUrl,
+    source_id: restaurant.id,
+    address: {
+      city: restaurant.address?.city,
+      street: restaurant.address?.firstLine,
+      postcode: restaurant.address?.postalCode,
+      longitude: restaurant.address?.location?.coordinates?.[0],
+      latitude: restaurant.address?.location?.coordinates?.[1],
+    },
+    rating_count: restaurant.rating?.count,
+    is_new: restaurant.isNew,
+    distance_meters: restaurant.driveDistanceMeters,
+    opening_time: restaurant.openingTimeLocal,
+    delivery_opening_time: restaurant.deliveryOpeningTimeLocal,
+    supports_delivery: restaurant.isDelivery,
+    supports_collection: restaurant.isCollection,
+    open_for_delivery_now: restaurant.isOpenNowForDelivery,
+    open_for_collection_now: restaurant.isOpenNowForCollection,
+    open_for_preorder_now: restaurant.isOpenNowForPreorder,
+    temporarily_offline: restaurant.isTemporarilyOffline,
+    delivery_eta: {
+      approximate: restaurant.deliveryEtaMinutes?.approximate,
+      min: restaurant.deliveryEtaMinutes?.rangeLower,
+      max: restaurant.deliveryEtaMinutes?.rangeUpper,
+    },
+    delivery_fee_bands: feeConfig?.bands?.map((band) => ({
+      minimum_order: band.minimumAmount ?? 0,
+      fee: band.fee ?? 0,
+    })),
+    service_options: serviceOptions,
+    deals: restaurant.deals?.map((deal) => ({
+      description: deal.description,
+      type: deal.offerType,
+    })),
+    tags: restaurant.tags,
+    availability: restaurant.availability,
+    banner_url: restaurant.bannerUrl,
+    is_premier: restaurant.isPremier,
+    source_data: {
+      restaurant,
+      ...(feeConfig ? { deliveryFees: feeConfig } : {}),
+    },
   };
 }
 

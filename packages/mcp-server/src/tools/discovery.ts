@@ -14,11 +14,13 @@ export function registerDiscoveryTools(server: McpServer): void {
       cuisine: z.string().optional().describe('Cuisine filter, e.g. "Italian"'),
       query: z.string().optional().describe('Free-text keyword search'),
       sort_by: z.enum(['rating', 'delivery_time', 'delivery_fee']).optional(),
+      service_type: z.enum(['delivery', 'collection']).optional().describe('Search for delivery or collection/pickup'),
+      open_now: z.boolean().optional().describe('Only return restaurants open for the selected service right now'),
     },
-    async ({ platform, location, cuisine, query, sort_by }) => {
+    async ({ platform, location, cuisine, query, sort_by, service_type, open_now }) => {
       try {
         const client = getClient(platform);
-        const results = await client.searchRestaurants({ location, cuisine, query, sort_by });
+        const results = await client.searchRestaurants({ location, cuisine, query, sort_by, service_type, open_now });
         return { content: [{ type: 'text', text: JSON.stringify(results) }] };
       } catch (e: unknown) {
         return errorResponse(e);

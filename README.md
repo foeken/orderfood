@@ -4,7 +4,7 @@
 [![npm](https://img.shields.io/npm/v/@henkas/orderfood)](https://www.npmjs.com/package/@henkas/orderfood)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-MCP server that lets AI agents search restaurants and place food delivery orders on **Uber Eats** and **Thuisbezorgd** via 11 MCP tools.
+MCP server that lets AI agents search restaurants and manage food delivery orders on **Uber Eats** and **Thuisbezorgd**.
 
 > **Legal:** Reverse engineering for interoperability is explicitly permitted under EU Directive 2009/24/EC Article 6. This project is personal use and open-source research — not commercial, not affiliated with Uber Eats or Just Eat Takeaway.
 
@@ -26,17 +26,19 @@ MCP server that lets AI agents search restaurants and place food delivery orders
 
 | Tool | Description |
 |------|-------------|
-| `search_restaurants` | Find restaurants by location, cuisine, or query |
-| `get_restaurant` | Get full restaurant details and menu |
+| `search_restaurants` | Find restaurants by location, cuisine, query, delivery/collection service and current open state |
+| `get_restaurant` | Get the menu plus full discovery metadata, availability, service options, fees, deals and source data |
 | `get_cart` | View current cart |
 | `add_to_cart` | Add an item to the cart with options |
 | `clear_cart` | Empty the cart |
 | `get_saved_addresses` | List saved delivery addresses |
+| `add_address` | Add a saved Thuisbezorgd address |
+| `update_address` | Update a saved Thuisbezorgd address |
+| `delete_address` | Permanently delete a saved Thuisbezorgd address |
 | `get_payment_methods` | List available payment methods |
 | `place_order` | Place the current cart as an order |
-| `track_order` | Get live order status |
+| `track_order` | Get status, ETA, delay, history, upcoming states and courier capability flags |
 | `get_order_history` | List past orders |
-| `cancel_order` | Cancel an active order |
 | `ping_platform` | Check auth + connectivity for a platform |
 
 All tools accept `platform: "ubereats" | "thuisbezorgd"` as a required parameter.
@@ -45,18 +47,19 @@ All tools accept `platform: "ubereats" | "thuisbezorgd"` as a required parameter
 
 | Capability | Uber Eats | Thuisbezorgd | Notes |
 |---|---|---|---|
-| Search restaurants | ✅ | ✅ | |
-| Get restaurant + menu | ✅ | ✅ | TB uses SSR HTML scraping |
+| Search restaurants | ✅ | ✅ | Thuisbezorgd supports `service_type` and `open_now` |
+| Get restaurant + menu | ✅ | ✅ | Thuisbezorgd includes the complete discovery payload in `source_data` |
 | Cart management | ✅ | ✅ | |
-| Saved addresses | — | ✅ | UE resolves addresses on-the-fly |
+| Saved addresses | — | ✅ | Thuisbezorgd supports list, add, update and delete |
 | Payment methods | ✅ | ✅ | |
 | Place order | ⚠️ | ⚠️ | Blocked by browser payment flow (Apple Pay / iDeal / Adyen) |
-| Track order | ✅ | ✅ |
+| Track order | ✅ | ✅ | Thuisbezorgd includes status history and detailed ETA/delay information |
 | Order history | 🚧 | ✅ | UE: endpoint returns null — correct request params unknown |
-| Cancel order | 🚧 | 🚧 | Endpoint not yet captured |
 | Health check | ✅ | ✅ | `ping_platform` tool verifies auth + connectivity |
 
 **Legend:** ✅ working · ⚠️ blocked by external dependency · 🚧 stub (API not yet captured) · — not applicable
+
+`cancel_order` is intentionally not an MCP tool. Cancellation is not implemented or exposed.
 
 ## Architecture
 

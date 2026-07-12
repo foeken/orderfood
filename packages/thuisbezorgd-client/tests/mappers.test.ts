@@ -36,6 +36,12 @@ const listingRestaurant: TBListingRestaurant = {
     starRating: 4,
   },
   isOpenNowForDelivery: true,
+  isOpenNowForCollection: false,
+  isOpenNowForPreorder: true,
+  isDelivery: true,
+  isCollection: true,
+  driveDistanceMeters: 1250,
+  isPremier: true,
   deliveryEtaMinutes: {
     rangeLower: 35,
     rangeUpper: 50,
@@ -313,6 +319,12 @@ describe('mapRestaurantSummary', () => {
     expect(restaurant.min_order).toBe(1000);
     expect(restaurant.delivery_time_min).toBe(35);
     expect(restaurant.cuisine).toEqual(['Burgers', '100% Halal']);
+    expect(restaurant.open_for_delivery_now).toBe(true);
+    expect(restaurant.open_for_collection_now).toBe(false);
+    expect(restaurant.service_options).toEqual(['delivery', 'collection', 'preorder']);
+    expect(restaurant.distance_meters).toBe(1250);
+    expect(restaurant.is_premier).toBe(true);
+    expect(restaurant.source_data?.restaurant).toEqual(listingRestaurant);
   });
 });
 

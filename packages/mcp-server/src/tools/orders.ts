@@ -52,15 +52,4 @@ export function registerOrderTools(server: McpServer): void {
     },
   );
 
-  server.tool(
-    'cancel_order',
-    'Cancel an order if it is still within the cancellable window. Throws if cancellation is no longer possible.',
-    { platform: platformSchema, order_id: z.string() },
-    async ({ platform, order_id }) => {
-      try {
-        await getClient(platform).cancelOrder(order_id);
-        return { content: [{ type: 'text', text: JSON.stringify({ success: true }) }] };
-      } catch (e: unknown) { return errorResponse(e); }
-    },
-  );
 }

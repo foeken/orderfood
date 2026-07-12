@@ -5,6 +5,7 @@ import type {
   Cart,
   CartItemOption,
   Order,
+  OrderTracking,
   OrderStatus,
   PaymentMethod,
   PlatformClient,
@@ -60,6 +61,7 @@ export class ThuisbezorgdClient implements PlatformClient {
   private lastSearchGeoLocation:
     | { latitude: number; longitude: number }
     | null = null;
+  private readonly discoveredRestaurants = new Map<string, Restaurant>();
 
   async searchRestaurants(params: SearchParams): Promise<Restaurant[]> {
     const geocode = await this.restRequest<TBGeocodeResponse>('/geocode/nl', {
@@ -78,7 +80,7 @@ export class ThuisbezorgdClient implements PlatformClient {
     const query = new URLSearchParams({
       latitude: String(latitude),
       longitude: String(longitude),
-      serviceType: 'delivery',
+      serviceType: params.service_type ?? 'delivery',
       ratingsOutOfFive: 'true',
       'include-test-partners': 'false',
       'je-tgl-ops_include_closed': 'true',
@@ -91,7 +93,7 @@ export class ThuisbezorgdClient implements PlatformClient {
 
     let restaurants = discovery.restaurants.map((restaurant) => {
       const fee = discovery.deliveryFees?.restaurants?.[restaurant.id];
-      return mapRestaurantSummary({
+      const summary = mapRestaurantSummary({
         ...restaurant,
         deliveryFees: fee ? {
           byMinFee: {
@@ -99,8 +101,18 @@ export class ThuisbezorgdClient implements PlatformClient {
             fee: fee.bands?.[0]?.fee,
           },
         } : restaurant.deliveryFees,
-      });
+      }, fee);
+      this.discoveredRestaurants.set(summary.id, summary);
+      return summary;
     });
+
+    if (params.open_now) {
+      restaurants = restaurants.filter((restaurant) =>
+        params.service_type === 'collection'
+          ? restaurant.open_for_collection_now
+          : restaurant.open_for_delivery_now,
+      );
+    }
 
     if (params.query) {
       const query = params.query.toLowerCase();
@@ -122,7 +134,14 @@ export class ThuisbezorgdClient implements PlatformClient {
   async getRestaurant(restaurantId: string): Promise<RestaurantWithMenu> {
     const html = await fetchHtml(`${BASE}/menu/${restaurantId}`);
     const restaurant = parseMenuState(html);
-    return mapRestaurantMenu(restaurant);
+    const menu = mapRestaurantMenu(restaurant);
+    const discovery = this.discoveredRestaurants.get(restaurantId);
+    return {
+      ...menu,
+      ...discovery,
+      categories: menu.categories,
+      image_url: menu.image_url ?? discovery?.image_url,
+    };
   }
 
   async getCart(): Promise<Cart | null> {
@@ -266,7 +285,7 @@ export class ThuisbezorgdClient implements PlatformClient {
 
   async trackOrder(
     orderId: string,
-  ): Promise<{ status: OrderStatus; details: string }> {
+  ): Promise<OrderTracking> {
     const response = await this.restGet<TBOrderStatusResponse>(
       `/consumer/me/orders/nl/${encodeURIComponent(orderId)}/status`,
     );
@@ -280,7 +299,33 @@ export class ThuisbezorgdClient implements PlatformClient {
           ? `due ${response.status.currentDueDate}`
           : null,
     ].filter(Boolean).join('; ');
-    return { status, details };
+    return {
+      status,
+      details,
+      raw_status: response.status.value,
+      is_active: response.status.isActive,
+      is_recent: response.status.isRecent,
+      is_delayed: response.status.isDelayed,
+      delay: response.status.delay,
+      initial_due_date: response.status.initialDueDate,
+      current_due_date: response.status.currentDueDate,
+      estimated_start: response.status.estimatedCompletion?.start,
+      estimated_end: response.status.estimatedCompletion?.end,
+      confidence: response.status.confidence,
+      service_type: response.serviceType,
+      delivery_model: response.deliveryModel,
+      is_for_delivery: response.isForDelivery,
+      courier_tracking_available: Boolean(response.status.tracking),
+      courier_chat_available: Boolean(response.status.courierChat),
+      history: response.status.history?.map((event) => ({
+        status: event.value,
+        timestamp: event.timestamp,
+        due_date: event.dueDate,
+        confidence: event.confidence,
+        reason: event.reason,
+      })),
+      upcoming: response.status.upcoming?.map((event) => event.value),
+    };
   }
 
   async getOrderHistory(limit?: number): Promise<Order[]> {
