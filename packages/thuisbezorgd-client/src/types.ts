@@ -318,7 +318,23 @@ export interface TBSavedAddress {
   ZipCode?: string;
   AddressName?: string;
   Line1?: string;
+  Line2?: string;
+  Line3?: string;
+  Line4?: string;
+  AdditionalInformation?: {
+    Floor?: string;
+    FlatNumber?: string;
+    AccessCode?: string;
+    [key: string]: string | undefined;
+  };
+  Geolocation?: {
+    Latitude?: number;
+    Longitude?: number;
+    GooglePlaceId?: string;
+  };
 }
+
+export type TBAddressMutationPayload = Omit<TBSavedAddress, 'AddressId'>;
 
 export interface TBSavedAddressesResponse {
   Addresses: TBSavedAddress[];

@@ -221,7 +221,9 @@ const savedAddresses: TBSavedAddressesResponse = {
       City: 'Den Haag',
       ZipCode: '2572 GD',
       AddressName: 'Home',
-      Line1: 'Kempstraat 141',
+      Line1: 'Kempstraat',
+      Line2: '141',
+      Geolocation: { Latitude: 52.07, Longitude: 4.3 },
     },
   ],
   DefaultAddress: 5659709812,
@@ -343,7 +345,9 @@ describe('mapSavedAddresses', () => {
     expect(addresses).toHaveLength(1);
     expect(addresses[0].id).toBe('5659709812');
     expect(addresses[0].label).toBe('Home');
-    expect(addresses[0].formatted).toContain('Kempstraat 141');
+    expect(addresses[0].formatted).toBe('Kempstraat 141, 2572 GD, Den Haag');
+    expect(addresses[0].lat).toBe(52.07);
+    expect(addresses[0].lng).toBe(4.3);
   });
 });
 

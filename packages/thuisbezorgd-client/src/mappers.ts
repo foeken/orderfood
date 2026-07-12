@@ -204,9 +204,19 @@ export function mapSavedAddresses(
   return (response.Addresses ?? []).map((address) => ({
     id: String(address.AddressId),
     label: address.AddressName,
-    formatted: [address.Line1, address.ZipCode, address.City]
+    formatted: [
+      [address.Line1, address.Line2].filter(Boolean).join(' '),
+      address.ZipCode,
+      address.City,
+    ]
       .filter(Boolean)
       .join(', '),
+    ...(address.Geolocation?.Latitude !== undefined
+      ? { lat: address.Geolocation.Latitude }
+      : {}),
+    ...(address.Geolocation?.Longitude !== undefined
+      ? { lng: address.Geolocation.Longitude }
+      : {}),
   }));
 }
 

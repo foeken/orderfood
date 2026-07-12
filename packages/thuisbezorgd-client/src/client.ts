@@ -1,6 +1,7 @@
 import fetch from 'node-fetch';
 import type {
   Address,
+  AddressInput,
   Cart,
   CartItemOption,
   Order,
@@ -35,11 +36,13 @@ import {
 } from './mappers.js';
 import type {
   TBBasketResponse,
+  TBAddressMutationPayload,
   TBCheckoutResponse,
   TBDiscoveryResponse,
   TBGeocodeResponse,
   TBListingPageState,
   TBRestaurantCdnData,
+  TBSavedAddress,
   TBSavedAddressesResponse,
   TBWalletResponse,
   TBOrderHistoryResponse,
@@ -222,6 +225,31 @@ export class ThuisbezorgdClient implements PlatformClient {
     return mapSavedAddresses(response);
   }
 
+  async addAddress(address: AddressInput): Promise<Address> {
+    const payload = await this.buildAddressPayload(address);
+    const response = await this.restRequest<TBSavedAddress>(
+      '/applications/international/consumer/me/address',
+      { method: 'POST', body: JSON.stringify(payload) },
+    );
+    return this.resolveSavedAddress(response, address);
+  }
+
+  async updateAddress(addressId: string, address: AddressInput): Promise<Address> {
+    const payload = await this.buildAddressPayload(address);
+    const response = await this.restRequest<TBSavedAddress>(
+      `/applications/international/consumer/me/address/${encodeURIComponent(addressId)}`,
+      { method: 'PUT', body: JSON.stringify(payload) },
+    );
+    return this.resolveSavedAddress(response, address, addressId);
+  }
+
+  async deleteAddress(addressId: string): Promise<void> {
+    await this.restRequest(
+      `/applications/international/consumer/me/address/${encodeURIComponent(addressId)}`,
+      { method: 'DELETE' },
+    );
+  }
+
   async getPaymentMethods(): Promise<PaymentMethod[]> {
     const response = await this.restGet<TBWalletResponse>('/consumers/nl/wallet');
     return mapWalletPaymentMethods(response);
@@ -283,6 +311,51 @@ export class ThuisbezorgdClient implements PlatformClient {
       await saveCredentials(this.credentials);
     }
     return this.credentials;
+  }
+
+  private async buildAddressPayload(address: AddressInput): Promise<TBAddressMutationPayload> {
+    const postcode = normalizeZipCode(address.postcode);
+    if (!postcode) {
+      throw new ValidationError('A valid Dutch postcode is required.', 'INVALID_POSTCODE');
+    }
+    const geocode = await this.restRequest<TBGeocodeResponse>('/geocode/nl', {
+      method: 'POST',
+      body: JSON.stringify({
+        addressLines: [`${address.street} ${address.street_number}, ${postcode} ${address.city}`],
+        noPostcodeFilter: false,
+      }),
+    });
+    const [longitude, latitude] = geocode.geometry.coordinates;
+    return {
+      AddressName: address.label ?? 'Address',
+      City: address.city,
+      ZipCode: postcode,
+      Line1: address.street,
+      Line2: address.street_number,
+      Line3: address.notes ?? '',
+      Line4: address.floor ?? '',
+      AdditionalInformation: {
+        Floor: address.floor,
+        FlatNumber: address.apartment,
+        AccessCode: address.access_code,
+      },
+      Geolocation: { Latitude: latitude, Longitude: longitude },
+    };
+  }
+
+  private async resolveSavedAddress(
+    response: TBSavedAddress,
+    input: AddressInput,
+    addressId?: string,
+  ): Promise<Address> {
+    if (response?.AddressId) return mapSavedAddresses({ Addresses: [response] })[0];
+    const addresses = await this.getSavedAddresses();
+    const expected = `${input.street} ${input.street_number}`.toLowerCase();
+    const match = addresses.find((entry) =>
+      entry.id === addressId || entry.formatted.toLowerCase().startsWith(expected),
+    );
+    if (!match) throw new NotFoundError('Saved address was not returned after mutation.', 'ADDRESS_NOT_FOUND');
+    return match;
   }
 
   private async restGet<T>(

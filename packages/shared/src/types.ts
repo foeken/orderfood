@@ -103,6 +103,18 @@ export interface Address {
   lng?: number;
 }
 
+export interface AddressInput {
+  label?: string;
+  street: string;
+  street_number: string;
+  postcode: string;
+  city: string;
+  floor?: string;
+  apartment?: string;
+  access_code?: string;
+  notes?: string;
+}
+
 export interface PaymentMethod {
   id: string;
   type: 'card' | 'paypal' | 'ideal' | 'cash' | 'other';
@@ -131,6 +143,9 @@ export interface PlatformClient {
   ): Promise<Cart>;
   clearCart(): Promise<void>;
   getSavedAddresses(): Promise<Address[]>;
+  addAddress?(address: AddressInput): Promise<Address>;
+  updateAddress?(addressId: string, address: AddressInput): Promise<Address>;
+  deleteAddress?(addressId: string): Promise<void>;
   getPaymentMethods(): Promise<PaymentMethod[]>;
   placeOrder(addressId: string, paymentMethodId: string): Promise<Order>;
   trackOrder(orderId: string): Promise<{ status: OrderStatus; details: string }>;
