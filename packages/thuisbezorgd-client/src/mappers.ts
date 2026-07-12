@@ -20,7 +20,58 @@ import type {
   TBRestaurantCdnData,
   TBSavedAddressesResponse,
   TBWalletResponse,
+  TBOrderHistoryItem,
 } from './types.js';
+import type { Order, OrderStatus } from '@orderfood/shared';
+
+export function mapOrderHistoryItem(order: TBOrderHistoryItem): Order {
+  const quantities = new Map(
+    (order.basket.summary?.items ?? []).map((item) => [item.id, item.quantity]),
+  );
+  return {
+    id: order.id,
+    platform: 'thuisbezorgd',
+    status: mapOrderStatus(order.status.value),
+    restaurant_name: order.restaurant.displayName,
+    items: order.basket.items.map((item) => ({
+      item_id: item.productId,
+      name: item.name,
+      quantity: quantities.get(item.productId) ?? 1,
+      unit_price: Math.round(item.unitPrice * 100),
+      selected_options: [
+        ...(item.requiredAccessories ?? []),
+        ...(item.optionalAccessories ?? []),
+      ].map((option) => ({ group_id: 'accessory', option_id: option.accessoryId })),
+    })),
+    total: Math.round(order.basket.total * 100),
+    placed_at: order.information.createdAt,
+    ...(order.status.estimatedCompletion?.end
+      ? { estimated_delivery: order.status.estimatedCompletion.end }
+      : {}),
+  };
+}
+
+function mapOrderStatus(value: string): OrderStatus {
+  switch (value.toLowerCase()) {
+    case 'accepted':
+    case 'confirmed':
+      return 'confirmed';
+    case 'preparing':
+    case 'inkitchen':
+      return 'preparing';
+    case 'ontheway':
+    case 'pickedup':
+      return 'picked_up';
+    case 'completed':
+    case 'delivered':
+      return 'delivered';
+    case 'cancelled':
+    case 'rejected':
+      return 'cancelled';
+    default:
+      return 'pending';
+  }
+}
 
 export function mapRestaurantSummary(
   restaurant: TBListingRestaurant,

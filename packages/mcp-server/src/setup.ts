@@ -1,6 +1,12 @@
 #!/usr/bin/env node
 import { createInterface } from 'node:readline';
 import { saveCredentials } from '@orderfood/ubereats-client/auth';
+import {
+  createBrowserAuthorization,
+  exchangeAuthorizationCode,
+  saveCredentials as saveThuisbezorgdCredentials,
+} from '@orderfood/thuisbezorgd-client/auth';
+import { captureAuthorizationCode } from './browser-auth.js';
 
 const args = process.argv.slice(2);
 const platformIdx = args.indexOf('--platform');
@@ -14,6 +20,26 @@ if (!platform || !['ubereats', 'thuisbezorgd'].includes(platform)) {
 const rl = createInterface({ input: process.stdin, output: process.stdout });
 
 console.log(`\nOrderFood Setup — ${platform}\n`);
+if (platform === 'thuisbezorgd') {
+  const emailIdx = args.indexOf('--email');
+  const email = emailIdx >= 0
+    ? args[emailIdx + 1]
+    : await new Promise<string>((resolve) => rl.question('Thuisbezorgd email: ', resolve));
+  const authorization = createBrowserAuthorization();
+  const code = await captureAuthorizationCode(
+    authorization.authorization_url,
+    authorization.state,
+    authorization.redirect_uri,
+    email,
+    () => new Promise((resolve) => rl.question('Enter the verification code: ', resolve)),
+  );
+  rl.close();
+  const credentials = await exchangeAuthorizationCode(code, authorization.code_verifier);
+  await saveThuisbezorgdCredentials(credentials);
+  console.log('\n✓ Credentials saved to ~/.orderfood/thuisbezorgd.json');
+  process.exit(0);
+}
+
 console.log('1. Open https://www.ubereats.com (or thuisbezorgd.nl) in your browser');
 console.log('2. Log in to your account');
 console.log('3. Open DevTools → Application → Cookies');
@@ -32,7 +58,6 @@ rl.on('line', async (line) => {
         cookies,
       });
     }
-    // TODO: thuisbezorgd save
     console.log(`\n✓ Credentials saved to ~/.orderfood/${platform}.json`);
     process.exit(0);
   } catch (e) {

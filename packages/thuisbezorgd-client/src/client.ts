@@ -30,6 +30,7 @@ import {
   mapRestaurantSummary,
   mapSavedAddresses,
   mapWalletPaymentMethods,
+  mapOrderHistoryItem,
 } from './mappers.js';
 import type {
   TBBasketResponse,
@@ -38,6 +39,7 @@ import type {
   TBRestaurantCdnData,
   TBSavedAddressesResponse,
   TBWalletResponse,
+  TBOrderHistoryResponse,
 } from './types.js';
 
 const BASE = 'https://www.thuisbezorgd.nl/en';
@@ -206,8 +208,10 @@ export class ThuisbezorgdClient implements PlatformClient {
   }
 
   async getOrderHistory(limit?: number): Promise<Order[]> {
-    void limit;
-    throw basketStub();
+    const response = await this.restGet<TBOrderHistoryResponse>(
+      '/consumer/me/orders/nl?ratingsOutOfFive=true',
+    );
+    return response.orders.slice(0, limit ?? 10).map(mapOrderHistoryItem);
   }
 
   async cancelOrder(orderId: string): Promise<void> {
@@ -254,6 +258,8 @@ export class ThuisbezorgdClient implements PlatformClient {
       headers: {
         authorization: `Bearer ${creds.access_token}`,
         accept: 'application/json, text/plain, */*',
+        'accept-tenant': 'nl',
+        'x-jet-application': 'OneWeb',
         'content-type': contentType,
       },
       body: init.body,
@@ -269,8 +275,9 @@ export class ThuisbezorgdClient implements PlatformClient {
       throw new NotFoundError(`Thuisbezorgd resource not found: ${path}`, 'NOT_FOUND');
     }
     if (!res.ok) {
+      const responseBody = (await res.text()).slice(0, 500);
       throw new PlatformError(
-        `Thuisbezorgd REST request failed: ${res.status}`,
+        `Thuisbezorgd REST request failed: ${res.status}${responseBody ? ` ${responseBody}` : ''}`,
         'HTTP_ERROR',
         res.status,
       );

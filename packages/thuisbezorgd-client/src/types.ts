@@ -56,6 +56,44 @@ export interface TBListingPageState {
   };
 }
 
+export interface TBOrderHistoryResponse {
+  orders: TBOrderHistoryItem[];
+}
+
+export interface TBOrderHistoryItem {
+  id: string;
+  friendlyId: string;
+  information: {
+    createdAt: string;
+  };
+  basket: {
+    total: number;
+    items: Array<{
+      productId: string;
+      name: string;
+      unitPrice: number;
+      requiredAccessories?: Array<{ accessoryId: string }>;
+      optionalAccessories?: Array<{ accessoryId: string }>;
+    }>;
+    summary?: {
+      items?: Array<{
+        id: string;
+        quantity: number;
+      }>;
+    };
+  };
+  restaurant: {
+    displayName: string;
+  };
+  status: {
+    value: string;
+    estimatedCompletion?: {
+      start?: string;
+      end?: string;
+    } | null;
+  };
+}
+
 export interface TBImageSource {
   path: string;
   source?: string;

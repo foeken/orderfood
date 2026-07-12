@@ -8,6 +8,7 @@ This guide walks through installing OrderFood, authenticating with each platform
 
 - **Node.js 20+** — [nodejs.org](https://nodejs.org)
 - **pnpm 9+** — `npm install -g pnpm`
+- **Google Chrome on macOS** — currently required for Thuisbezorgd's browser-assisted OAuth flow
 - An active **Uber Eats** and/or **Thuisbezorgd** account
 
 ---
@@ -73,13 +74,18 @@ Paste the cookies JSON and press Enter:
 
 ### Thuisbezorgd
 
-Thuisbezorgd uses OAuth 2.0 PKCE with email/OTP (passwordless). The setup CLI handles the full flow.
+Thuisbezorgd uses OAuth 2.0 PKCE with email/OTP (passwordless) and a browser-bound
+Cloudflare Turnstile challenge. The setup CLI opens an isolated Chrome profile,
+completes the browser portion, intercepts the registered OAuth callback before it
+is consumed, and exchanges the authorization code locally.
 
 ```bash
 npx @henkas/orderfood setup --platform thuisbezorgd
 ```
 
-You will be prompted for your email address. A one-time code is sent to your inbox — paste it back into the terminal. The access token and refresh token are saved automatically and refreshed as needed.
+You will be prompted for your email address. A one-time code is sent to your inbox —
+paste it back into the terminal. The access token and refresh token are saved
+automatically, encrypted with file mode `0600`, and refreshed as needed.
 
 ---
 

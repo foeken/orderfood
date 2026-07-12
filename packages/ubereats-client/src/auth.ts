@@ -1,6 +1,6 @@
 import { createHash, createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
-import { machineIdSync } from 'node-machine-id';
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import nodeMachineId from 'node-machine-id';
+import { chmod, readFile, writeFile, mkdir } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
@@ -21,6 +21,7 @@ const PLATFORM = 'ubereats';
 const SALT = 'orderfood-v1';
 
 function deriveKey(): Buffer {
+  const { machineIdSync } = nodeMachineId;
   const machineId = machineIdSync(true); // raw hex
   // HKDF-SHA256: extract step (HMAC-SHA256(salt, IKM))
   const prk = createHash('sha256')
@@ -74,9 +75,10 @@ export async function loadCredentials(): Promise<UberEatsCredentials> {
 
 export async function saveCredentials(creds: UberEatsCredentials): Promise<void> {
   const path = credentialsPath();
-  await mkdir(join(homedir(), '.orderfood'), { recursive: true });
+  await mkdir(join(homedir(), '.orderfood'), { recursive: true, mode: 0o700 });
   const stored = await encryptCredentials(creds);
-  await writeFile(path, JSON.stringify(stored, null, 2), 'utf-8');
+  await writeFile(path, JSON.stringify(stored, null, 2), { encoding: 'utf-8', mode: 0o600 });
+  await chmod(path, 0o600);
 }
 
 export function isCookiesExpired(creds: UberEatsCredentials): boolean {

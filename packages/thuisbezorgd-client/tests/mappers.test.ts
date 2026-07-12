@@ -5,6 +5,7 @@ import {
   mapRestaurantMenu,
   mapSavedAddresses,
   mapWalletPaymentMethods,
+  mapOrderHistoryItem,
 } from '../src/mappers.js';
 import type {
   TBCheckoutResponse,
@@ -12,6 +13,7 @@ import type {
   TBRestaurantCdnData,
   TBSavedAddressesResponse,
   TBWalletResponse,
+  TBOrderHistoryItem,
 } from '../src/types.js';
 
 const listingRestaurant: TBListingRestaurant = {
@@ -241,6 +243,48 @@ const walletResponse: TBWalletResponse = {
     },
   ],
 };
+
+const orderHistoryItem: TBOrderHistoryItem = {
+  id: 'order-internal-id',
+  friendlyId: 'PWF4GW',
+  information: { createdAt: '2026-07-12T12:01:35+00:00' },
+  restaurant: { displayName: 'Cafetaria de Snoek' },
+  status: {
+    value: 'Accepted',
+    estimatedCompletion: { end: '2026-07-12T15:45:00+02:00' },
+  },
+  basket: {
+    total: 19.1,
+    items: [{
+      productId: 'product-1',
+      name: 'Kapsalon Special Shawarma',
+      unitPrice: 13.9,
+      requiredAccessories: [{ accessoryId: 'size-large' }],
+    }],
+    summary: { items: [{ id: 'product-1', quantity: 1 }] },
+  },
+};
+
+describe('mapOrderHistoryItem', () => {
+  it('maps the live order-history shape to a normalized order', () => {
+    expect(mapOrderHistoryItem(orderHistoryItem)).toEqual({
+      id: 'order-internal-id',
+      platform: 'thuisbezorgd',
+      status: 'confirmed',
+      restaurant_name: 'Cafetaria de Snoek',
+      items: [{
+        item_id: 'product-1',
+        name: 'Kapsalon Special Shawarma',
+        quantity: 1,
+        unit_price: 1390,
+        selected_options: [{ group_id: 'accessory', option_id: 'size-large' }],
+      }],
+      total: 1910,
+      placed_at: '2026-07-12T12:01:35+00:00',
+      estimated_delivery: '2026-07-12T15:45:00+02:00',
+    });
+  });
+});
 
 describe('mapRestaurantSummary', () => {
   it('maps SSR listing restaurant data to Restaurant', () => {

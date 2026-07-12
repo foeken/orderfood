@@ -51,6 +51,7 @@ GET  https://auth.thuisbezorgd.nl/connect/authorize
        &acr_values=tenant:nl
 
 POST https://auth.thuisbezorgd.nl/applications/authenticationservice/credentials/email/validate
+     x-jet-captcha: {CLOUDFLARE_TURNSTILE_RESPONSE}
      {"email":"user@example.com","returnUrl":"/connect/authorize/callback?..."}
      → {"target":"user@example.com","validatedReturnUrl":"..."}
 

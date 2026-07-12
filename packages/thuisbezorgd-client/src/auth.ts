@@ -1,9 +1,9 @@
 import { createHash, createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { chmod, readFile, writeFile, mkdir } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import fetch, { HeadersInit } from 'node-fetch';
-import { machineIdSync } from 'node-machine-id';
+import nodeMachineId from 'node-machine-id';
 import { NotFoundError } from '@orderfood/shared';
 
 export interface ThuisbezorgdCredentials {
@@ -41,7 +41,65 @@ const AUTH_BASE = 'https://auth.thuisbezorgd.nl';
 const CLIENT_ID = 'consumer_web_je';
 const REDIRECT_URI = 'https://www.thuisbezorgd.nl/en/signin-oidc?returnUrl=/';
 
+export interface BrowserAuthorization {
+  authorization_url: string;
+  code_verifier: string;
+  state: string;
+  redirect_uri: string;
+}
+
+export function createBrowserAuthorization(): BrowserAuthorization {
+  const state = randomBytes(16).toString('hex');
+  const code_verifier = toBase64Url(randomBytes(32));
+  const code_challenge = toBase64Url(
+    createHash('sha256').update(code_verifier).digest(),
+  );
+  const params = new URLSearchParams({
+    client_id: CLIENT_ID,
+    redirect_uri: REDIRECT_URI,
+    response_type: 'code',
+    scope: 'openid profile mobile_scope offline_access',
+    code_challenge,
+    code_challenge_method: 'S256',
+    state,
+    ui_locales: 'en',
+    acr_values: 'tenant:nl',
+  });
+  return {
+    authorization_url: `${AUTH_BASE}/connect/authorize?${params}`,
+    code_verifier,
+    state,
+    redirect_uri: REDIRECT_URI,
+  };
+}
+
+export async function exchangeAuthorizationCode(
+  code: string,
+  codeVerifier: string,
+): Promise<ThuisbezorgdCredentials> {
+  const tokenRes = await fetch(`${AUTH_BASE}/connect/token`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'authorization_code',
+      code,
+      code_verifier: codeVerifier,
+      redirect_uri: REDIRECT_URI,
+      client_id: CLIENT_ID,
+    }).toString(),
+  });
+  if (!tokenRes.ok) {
+    throw new NotFoundError(
+      `Thuisbezorgd token exchange failed: ${tokenRes.status}`,
+      'AUTH_INVALID',
+    );
+  }
+  const tokenJson = (await tokenRes.json()) as TokenResponse;
+  return credentialsFromTokenResponse(tokenJson);
+}
+
 function deriveKey(): Buffer {
+  const { machineIdSync } = nodeMachineId;
   const machineId = machineIdSync(true);
   const prk = createHash('sha256')
     .update(Buffer.from(SALT))
@@ -101,9 +159,10 @@ export async function saveCredentials(
   creds: ThuisbezorgdCredentials,
 ): Promise<void> {
   const path = credentialsPath();
-  await mkdir(join(homedir(), '.orderfood'), { recursive: true });
+  await mkdir(join(homedir(), '.orderfood'), { recursive: true, mode: 0o700 });
   const stored = await encryptCredentials(creds);
-  await writeFile(path, JSON.stringify(stored, null, 2), 'utf-8');
+  await writeFile(path, JSON.stringify(stored, null, 2), { encoding: 'utf-8', mode: 0o600 });
+  await chmod(path, 0o600);
 }
 
 export function isAccessTokenExpired(
@@ -114,6 +173,7 @@ export function isAccessTokenExpired(
 
 export async function beginEmailLogin(
   email: string,
+  turnstileToken?: string,
 ): Promise<PendingThuisbezorgdLogin> {
   const jar: Record<string, string> = {};
   const state = randomBytes(16).toString('hex');
@@ -141,15 +201,27 @@ export async function beginEmailLogin(
     `${AUTH_BASE}/applications/authenticationservice/credentials/email/validate`,
     {
       method: 'POST',
-      headers: jsonHeaders(jar),
+      headers: {
+        ...jsonHeaders(jar),
+        'accept-tenant': 'nl',
+        'x-csrf': '1',
+        'x-jet-application': 'OneWeb',
+        ...(turnstileToken ? { 'x-jet-captcha': turnstileToken } : {}),
+      },
       body: JSON.stringify({ email, returnUrl }),
     },
     jar,
   );
-  const json = (await res.json()) as { validatedReturnUrl?: string };
+  const responseBody = await res.text();
+  let json: { validatedReturnUrl?: string } = {};
+  try {
+    json = JSON.parse(responseBody) as { validatedReturnUrl?: string };
+  } catch {
+    // The detailed error below includes the status and a bounded response body.
+  }
   if (!json.validatedReturnUrl) {
     throw new NotFoundError(
-      'Thuisbezorgd email validation did not return a validatedReturnUrl',
+      `Thuisbezorgd email validation failed (${res.status}): ${responseBody.slice(0, 500)}`,
       'AUTH_INVALID',
     );
   }
@@ -197,27 +269,12 @@ export async function completeEmailLogin(
     );
   }
 
-  const tokenRes = await fetch(`${AUTH_BASE}/connect/token`, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/x-www-form-urlencoded',
-    },
-    body: new URLSearchParams({
-      grant_type: 'authorization_code',
-      code,
-      code_verifier: pending.code_verifier,
-      redirect_uri: REDIRECT_URI,
-      client_id: CLIENT_ID,
-    }).toString(),
-  });
-  if (!tokenRes.ok) {
-    throw new NotFoundError(
-      `Thuisbezorgd token exchange failed: ${tokenRes.status}`,
-      'AUTH_INVALID',
-    );
-  }
+  return exchangeAuthorizationCode(code, pending.code_verifier);
+}
 
-  const tokenJson = (await tokenRes.json()) as TokenResponse;
+function credentialsFromTokenResponse(
+  tokenJson: TokenResponse,
+): ThuisbezorgdCredentials {
   const claims = decodeJwtPayload(tokenJson.access_token);
   return {
     access_token: tokenJson.access_token,

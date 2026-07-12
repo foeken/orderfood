@@ -3,7 +3,7 @@
 [![CI](https://github.com/henkas/orderfood/actions/workflows/ci.yml/badge.svg)](https://github.com/henkas/orderfood/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/henkas/orderfood/blob/main/LICENSE)
 
-MCP server that lets AI agents search restaurants and place food delivery orders on **Uber Eats** and **Thuisbezorgd** via 11 MCP tools.
+MCP server that lets AI agents search restaurants and manage food delivery orders on **Uber Eats** and **Thuisbezorgd** via 12 MCP tools.
 
 > **Legal:** Reverse engineering for interoperability is explicitly permitted under EU Directive 2009/24/EC Article 6. Personal use and open-source research — not commercial, not affiliated with Uber Eats or Just Eat Takeaway.
 
@@ -66,14 +66,15 @@ All tools accept `platform: "ubereats" | "thuisbezorgd"`.
 | Payment methods | ✅ | ✅ |
 | Place order | ⚠️ | ⚠️ |
 | Track order | ✅ | 🚧 |
-| Order history | 🚧 | 🚧 |
+| Order history | 🚧 | ✅ |
 | Cancel order | 🚧 | 🚧 |
 
 ⚠️ = blocked by browser-based payment flow &nbsp; 🚧 = stub, coming soon
 
 ## Requirements
 
-Node.js 20+
+Node.js 20+. Thuisbezorgd setup currently requires Google Chrome on macOS for its
+browser-assisted OAuth flow.
 
 ## Full docs
 
