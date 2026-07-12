@@ -36,6 +36,8 @@ import {
 import type {
   TBBasketResponse,
   TBCheckoutResponse,
+  TBDiscoveryResponse,
+  TBGeocodeResponse,
   TBListingPageState,
   TBRestaurantCdnData,
   TBSavedAddressesResponse,
@@ -57,20 +59,45 @@ export class ThuisbezorgdClient implements PlatformClient {
     | null = null;
 
   async searchRestaurants(params: SearchParams): Promise<Restaurant[]> {
-    const listingPath = buildListingPath(params.location);
-    const postcode = extractZipCode(params.location);
-    if (postcode) {
-      this.lastSearchZipCode = postcode;
-    }
-    const html = await fetchHtml(
-      `${BASE}/delivery/food/${listingPath}?openOnWeb=true`,
-    );
-    const listingState = parseListingState(html);
+    const geocode = await this.restRequest<TBGeocodeResponse>('/geocode/nl', {
+      method: 'POST',
+      body: JSON.stringify({
+        addressLines: [params.location],
+        noPostcodeFilter: false,
+      }),
+    });
+    const [longitude, latitude] = geocode.geometry.coordinates;
+    this.lastSearchGeoLocation = { latitude, longitude };
+    this.lastSearchZipCode =
+      normalizeZipCode(geocode.properties?.structuredAddress?.postcode) ??
+      extractZipCode(params.location);
 
-    let restaurants = listingState.restaurantList.filteredRestaurantIds
-      .map((restaurantId) => listingState.restaurants.lists[restaurantId])
-      .filter(Boolean)
-      .map((restaurant) => mapRestaurantSummary(restaurant));
+    const query = new URLSearchParams({
+      latitude: String(latitude),
+      longitude: String(longitude),
+      serviceType: 'delivery',
+      ratingsOutOfFive: 'true',
+      'include-test-partners': 'false',
+      'je-tgl-ops_include_closed': 'true',
+      defaultLayout: 'variant_2',
+    });
+    const discovery = await this.restGet<TBDiscoveryResponse>(
+      `/discovery/nl/restaurants/enriched?${query}`,
+      'application/json;v=3',
+    );
+
+    let restaurants = discovery.restaurants.map((restaurant) => {
+      const fee = discovery.deliveryFees?.restaurants?.[restaurant.id];
+      return mapRestaurantSummary({
+        ...restaurant,
+        deliveryFees: fee ? {
+          byMinFee: {
+            minimumAmount: fee.minimumOrderValue,
+            fee: fee.bands?.[0]?.fee,
+          },
+        } : restaurant.deliveryFees,
+      });
+    });
 
     if (params.query) {
       const query = params.query.toLowerCase();
@@ -175,10 +202,17 @@ export class ThuisbezorgdClient implements PlatformClient {
 
   async clearCart(): Promise<void> {
     if (!this.basketId) return;
-    await this.restRequest(`/basket/${this.basketId}`, {
-      method: 'DELETE',
-    });
-    this.basketId = null;
+    try {
+      await this.restRequest(`/basket/${this.basketId}`, {
+        method: 'DELETE',
+      });
+    } catch (error) {
+      // Checkout can invalidate the basket before the explicit delete reaches
+      // the basket service. A missing basket is already the desired result.
+      if (!(error instanceof NotFoundError)) throw error;
+    } finally {
+      this.basketId = null;
+    }
   }
 
   async getSavedAddresses(): Promise<Address[]> {
@@ -450,17 +484,6 @@ function extractBalancedJson(source: string, startIndex: number): string {
   );
 }
 
-function buildListingPath(location: string): string {
-  const postcodeMatch = location.match(/\b\d{4}\s?[A-Za-z]{2}\b/);
-  if (!postcodeMatch) {
-    return slugify(location);
-  }
-
-  const postcode = postcodeMatch[0].replace(/\s+/g, '').toLowerCase();
-  const city = slugify(location.replace(postcodeMatch[0], '').trim());
-  return city ? `${city}-${postcode}` : postcode;
-}
-
 function extractZipCode(location: string): string | null {
   const postcodeMatch = location.match(/\b\d{4}\s?[A-Za-z]{2}\b/);
   if (!postcodeMatch) return null;
@@ -468,16 +491,9 @@ function extractZipCode(location: string): string | null {
   return `${normalized.slice(0, 4)} ${normalized.slice(4)}`;
 }
 
-function slugify(input: string): string {
-  // split on the separator then filter empty segments — avoids any trailing/leading
-  // hyphen trimming regex that CodeQL flags as polynomial-ReDoS vulnerable
-  return input
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .split('-')
-    .filter(Boolean)
-    .join('-');
+function normalizeZipCode(postcode?: string): string | null {
+  if (!postcode) return null;
+  return extractZipCode(postcode);
 }
 
 function sortRestaurants(

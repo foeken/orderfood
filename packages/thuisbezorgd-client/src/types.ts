@@ -56,6 +56,27 @@ export interface TBListingPageState {
   };
 }
 
+export interface TBDiscoveryResponse {
+  restaurants: TBListingRestaurant[];
+  deliveryFees?: {
+    restaurants?: Record<string, {
+      restaurantId: string;
+      minimumOrderValue?: number;
+      bands?: Array<{ minimumAmount?: number; fee?: number }>;
+    }>;
+  };
+}
+
+export interface TBGeocodeResponse {
+  geometry: {
+    type: 'Point';
+    coordinates: [number, number];
+  };
+  properties?: {
+    structuredAddress?: { postcode?: string };
+  };
+}
+
 export interface TBOrderHistoryResponse {
   orders: TBOrderHistoryItem[];
 }
