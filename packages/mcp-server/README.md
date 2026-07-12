@@ -65,7 +65,7 @@ All tools accept `platform: "ubereats" | "thuisbezorgd"`.
 | Saved addresses | — | ✅ |
 | Payment methods | ✅ | ✅ |
 | Place order | ⚠️ | ⚠️ |
-| Track order | ✅ | 🚧 |
+| Track order | ✅ | ✅ |
 | Order history | 🚧 | ✅ |
 | Cancel order | 🚧 | 🚧 |
 

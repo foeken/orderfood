@@ -51,8 +51,8 @@ All tools accept `platform: "ubereats" | "thuisbezorgd"` as a required parameter
 | Saved addresses | — | ✅ | UE resolves addresses on-the-fly |
 | Payment methods | ✅ | ✅ | |
 | Place order | ⚠️ | ⚠️ | Blocked by browser payment flow (Apple Pay / iDeal / Adyen) |
-| Track order | ✅ | 🚧 | TB tracking endpoint not yet captured |
-| Order history | 🚧 | 🚧 | UE: endpoint returns null — correct request params unknown; TB: not yet captured |
+| Track order | ✅ | ✅ |
+| Order history | 🚧 | ✅ | UE: endpoint returns null — correct request params unknown |
 | Cancel order | 🚧 | 🚧 | Endpoint not yet captured |
 | Health check | ✅ | ✅ | `ping_platform` tool verifies auth + connectivity |
 

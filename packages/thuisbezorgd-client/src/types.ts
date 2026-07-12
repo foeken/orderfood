@@ -94,6 +94,24 @@ export interface TBOrderHistoryItem {
   };
 }
 
+export interface TBOrderStatusResponse {
+  id: string;
+  restaurantName: string;
+  status: TBOrderStatus;
+}
+
+export interface TBOrderStatus {
+  isActive: boolean;
+  value: string;
+  isDelayed?: boolean;
+  currentDueDate?: string | null;
+  finishedAt?: string | null;
+  estimatedCompletion?: {
+    start?: string;
+    end?: string;
+  } | null;
+}
+
 export interface TBImageSource {
   path: string;
   source?: string;

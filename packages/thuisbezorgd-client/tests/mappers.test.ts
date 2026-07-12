@@ -6,6 +6,7 @@ import {
   mapSavedAddresses,
   mapWalletPaymentMethods,
   mapOrderHistoryItem,
+  mapOrderStatus,
 } from '../src/mappers.js';
 import type {
   TBCheckoutResponse,
@@ -283,6 +284,21 @@ describe('mapOrderHistoryItem', () => {
       placed_at: '2026-07-12T12:01:35+00:00',
       estimated_delivery: '2026-07-12T15:45:00+02:00',
     });
+  });
+});
+
+describe('mapOrderStatus', () => {
+  it.each([
+    ['AwaitingPayment', 'pending'],
+    ['Processing', 'pending'],
+    ['Accepted', 'confirmed'],
+    ['InKitchen', 'preparing'],
+    ['OnTheWay', 'picked_up'],
+    ['Completed', 'delivered'],
+    ['Cancelled', 'cancelled'],
+    ['Rejected', 'cancelled'],
+  ])('maps %s to %s', (value, expected) => {
+    expect(mapOrderStatus(value)).toBe(expected);
   });
 });
 

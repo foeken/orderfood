@@ -51,7 +51,7 @@ export function mapOrderHistoryItem(order: TBOrderHistoryItem): Order {
   };
 }
 
-function mapOrderStatus(value: string): OrderStatus {
+export function mapOrderStatus(value: string): OrderStatus {
   switch (value.toLowerCase()) {
     case 'accepted':
     case 'confirmed':
@@ -99,10 +99,10 @@ export function mapRestaurantMenu(
   restaurant: TBRestaurantCdnData,
 ): RestaurantWithMenu {
   const modifierGroups = new Map(
-    restaurant.modifierGroups.map((group) => [group.id, group]),
+    (restaurant.modifierGroups ?? []).map((group) => [group.id, group]),
   );
   const modifierSets = new Map(
-    restaurant.modifierSets.map((set) => [set.id, set]),
+    (restaurant.modifierSets ?? []).map((set) => [set.id, set]),
   );
 
   const categories: MenuCategory[] =

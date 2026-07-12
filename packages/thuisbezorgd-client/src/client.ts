@@ -31,6 +31,7 @@ import {
   mapSavedAddresses,
   mapWalletPaymentMethods,
   mapOrderHistoryItem,
+  mapOrderStatus,
 } from './mappers.js';
 import type {
   TBBasketResponse,
@@ -40,6 +41,7 @@ import type {
   TBSavedAddressesResponse,
   TBWalletResponse,
   TBOrderHistoryResponse,
+  TBOrderStatusResponse,
 } from './types.js';
 
 const BASE = 'https://www.thuisbezorgd.nl/en';
@@ -203,8 +205,20 @@ export class ThuisbezorgdClient implements PlatformClient {
   async trackOrder(
     orderId: string,
   ): Promise<{ status: OrderStatus; details: string }> {
-    void orderId;
-    throw basketStub();
+    const response = await this.restGet<TBOrderStatusResponse>(
+      `/consumer/me/orders/nl/${encodeURIComponent(orderId)}/status`,
+    );
+    const status = mapOrderStatus(response.status.value);
+    const details = [
+      `${response.restaurantName}: ${response.status.value}`,
+      response.status.isDelayed ? 'delayed' : null,
+      response.status.estimatedCompletion?.start && response.status.estimatedCompletion?.end
+        ? `estimated ${response.status.estimatedCompletion.start}–${response.status.estimatedCompletion.end}`
+        : response.status.currentDueDate
+          ? `due ${response.status.currentDueDate}`
+          : null,
+    ].filter(Boolean).join('; ');
+    return { status, details };
   }
 
   async getOrderHistory(limit?: number): Promise<Order[]> {
@@ -312,7 +326,22 @@ export function parseMenuState(html: string): TBRestaurantCdnData {
       'MENU_PARSE_FAILED',
     );
   }
-  return cdn.restaurant;
+  const menuStateStart = html.indexOf('"truncatedItems":');
+  if (menuStateStart === -1) return cdn.restaurant;
+  return {
+    ...cdn.restaurant,
+    items: extractNamedObject(html, 'items', menuStateStart) as TBRestaurantCdnData['items'],
+    modifierGroups: extractNamedArray(
+      html,
+      'modifierGroups',
+      menuStateStart,
+    ) as TBRestaurantCdnData['modifierGroups'],
+    modifierSets: extractNamedArray(
+      html,
+      'modifierSets',
+      menuStateStart,
+    ) as TBRestaurantCdnData['modifierSets'],
+  };
 }
 
 async function fetchHtml(url: string): Promise<string> {
@@ -336,9 +365,30 @@ async function fetchHtml(url: string): Promise<string> {
   return res.text();
 }
 
-function extractNamedObject(html: string, name: string): unknown {
+function extractNamedObject(
+  html: string,
+  name: string,
+  startIndex = 0,
+): unknown {
+  return extractNamedJson(html, name, startIndex, '{');
+}
+
+function extractNamedArray(
+  html: string,
+  name: string,
+  startIndex = 0,
+): unknown {
+  return extractNamedJson(html, name, startIndex, '[');
+}
+
+function extractNamedJson(
+  html: string,
+  name: string,
+  startIndex: number,
+  openingCharacter: '{' | '[',
+): unknown {
   const marker = `"${name}":`;
-  const markerIndex = html.indexOf(marker);
+  const markerIndex = html.indexOf(marker, startIndex);
   if (markerIndex === -1) {
     throw new NotFoundError(
       `Unable to find "${name}" in Thuisbezorgd page state`,
@@ -346,18 +396,20 @@ function extractNamedObject(html: string, name: string): unknown {
     );
   }
 
-  const objectStart = html.indexOf('{', markerIndex + marker.length);
-  if (objectStart === -1) {
+  const valueStart = html.indexOf(openingCharacter, markerIndex + marker.length);
+  if (valueStart === -1) {
     throw new NotFoundError(
-      `Unable to find object start for "${name}"`,
+      `Unable to find value start for "${name}"`,
       'STATE_NOT_FOUND',
     );
   }
 
-  return JSON.parse(extractBalancedJson(html, objectStart));
+  return JSON.parse(extractBalancedJson(html, valueStart));
 }
 
 function extractBalancedJson(source: string, startIndex: number): string {
+  const openingCharacter = source[startIndex];
+  const closingCharacter = openingCharacter === '[' ? ']' : '}';
   let depth = 0;
   let inString = false;
   let escaped = false;
@@ -382,9 +434,9 @@ function extractBalancedJson(source: string, startIndex: number): string {
 
     if (inString) continue;
 
-    if (ch === '{') {
+    if (ch === openingCharacter) {
       depth += 1;
-    } else if (ch === '}') {
+    } else if (ch === closingCharacter) {
       depth -= 1;
       if (depth === 0) {
         return source.slice(startIndex, index + 1);
