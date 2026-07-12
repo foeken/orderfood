@@ -119,6 +119,20 @@ claude mcp add orderfood -- node /path/to/orderfood/packages/mcp-server/dist/ind
 codex mcp add orderfood -- npx @henkas/orderfood
 ```
 
+## Streamable HTTP
+
+The MCP server can also run as an authenticated Streamable HTTP service:
+
+```bash
+ORDERFOOD_MCP_TOKEN="replace-with-a-secret" \
+ORDERFOOD_MCP_PUBLIC_URL="https://example.ngrok.app/mcp" \
+pnpm --filter @henkas/orderfood start:http
+```
+
+It binds to `127.0.0.1:23378` by default and exposes `/mcp`, `/health`, and
+`/.well-known/oauth-protected-resource/mcp`. Requests to `/mcp` require an
+`Authorization: Bearer …` header.
+
 Then talk to Claude:
 
 ```

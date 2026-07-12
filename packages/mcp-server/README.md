@@ -28,6 +28,18 @@ claude mcp add orderfood -- npx @henkas/orderfood
 codex mcp add orderfood -- npx @henkas/orderfood
 ```
 
+## Streamable HTTP
+
+Run the bearer-protected HTTP transport with:
+
+```bash
+ORDERFOOD_MCP_TOKEN="replace-with-a-secret" npm run start:http
+```
+
+The default endpoint is `http://127.0.0.1:23378/mcp`. Set
+`ORDERFOOD_MCP_PUBLIC_URL` when publishing it through a trusted HTTPS reverse
+proxy such as ngrok.
+
 Then talk to your agent:
 
 ```

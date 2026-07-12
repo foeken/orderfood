@@ -22,10 +22,15 @@ await Promise.all([
   }),
   esbuild.build({
     ...shared,
+    entryPoints: ['src/http.ts'],
+    outfile: 'dist/http.js',
+  }),
+  esbuild.build({
+    ...shared,
     entryPoints: ['src/setup.ts'],
     outfile: 'dist/setup.js',
     // shebang already in setup.ts line 1
   }),
 ]);
 
-console.log('bundled dist/index.js and dist/setup.js');
+console.log('bundled dist/index.js, dist/http.js, and dist/setup.js');
